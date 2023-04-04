@@ -375,7 +375,10 @@ class Views(Resource):
         for i in range(len(subflag_data)):
             id_var = str(subflag_data[i].id)
             # bool whether the subflag has been solved by the current team
-            solved = SubflagSolve.query.filter_by(subflag_id = id_var, team_id = team.id).first() is not None
+            if not team:
+                solved = SubflagSolve.query.filter_by(subflag_id = id_var, team_id = None).first() is not None
+            else:
+                solved = SubflagSolve.query.filter_by(subflag_id = id_var, team_id = team.id).first() is not None
             hints = SubflagHint.query.filter_by(subflag_id = id_var).all()
             subflag_json[id_var]  =  {
                 "desc": subflag_data[i].subflag_desc,
@@ -409,7 +412,10 @@ class Solve(Resource):
 
         #  if the challenge was already solved return a error message
         team = get_current_team()
-        solved = SubflagSolve.query.filter_by(subflag_id = subflag_id, team_id = team.id).first() is not None
+        if not team:
+            solved = SubflagSolve.query.filter_by(subflag_id = subflag_id, team_id = None).first() is not None
+        else:
+            solved = SubflagSolve.query.filter_by(subflag_id = subflag_id, team_id = team.id).first() is not None
         if solved:
             print("Subflag: already solved")
             return {"success": True, "data": {"message": "was already solved", "solved": True}}
@@ -420,7 +426,7 @@ class Solve(Resource):
             user = get_current_user()
             
             # if team mode is enabled then save user and team in the database 
-            if is_teams_mode:
+            if team is not None:
                 solve = SubflagSolve(
                     subflag_id =subflag_id,
                     user_id = user.id,
@@ -432,17 +438,17 @@ class Solve(Resource):
                     team_id = team.id,
                     value = Subflags.query.filter_by(id = subflag_id).all()[0].subflag_points
                 )
-            # if user mode save team id as user id to the database
+            # if user mode save team id as NULL to the database otherwise we'll get a DB error due to the table desing.
             else:
                 solve = SubflagSolve(
                     subflag_id=subflag_id,
                     user_id=user.id,
-                    team_id=user.id,
+                    team_id=None,
                 )
                 award = Awards(
                     name= Subflags.query.filter_by(id = subflag_id).all()[0].subflag_name,
                     user_id=user.id,
-                    team_id=user.id,
+                    team_id=None,
                     value = Subflags.query.filter_by(id = subflag_id).all()[0].subflag_points
                 )
             db.session.add(solve)
